@@ -1383,11 +1383,11 @@
         (global-name "com.apple.trustd.agent")))
 
 ;; Various services required by AppKit and other frameworks
-(allow mach-lookup
-       (global-name "com.apple.logd")
-       (global-name "com.apple.logd.events")
-       (global-name "com.apple.CARenderServer") ; Needed for [CAContext remoteContextWithOptions]
-)
+(with-filter (require-not (state-flag "DisableLogging"))
+    (allow mach-lookup
+       (global-name "com.apple.logd" "com.apple.logd.events")))
+
+(allow mach-lookup (global-name "com.apple.CARenderServer")) ; Needed for [CAContext remoteContextWithOptions]
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED <= 110000
 (allow mach-lookup

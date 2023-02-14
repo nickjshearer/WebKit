@@ -113,7 +113,6 @@
 #import <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
 #import <wtf/cocoa/TypeCastsCocoa.h>
 #import <wtf/cocoa/VectorCocoa.h>
-#import <wtf/spi/cocoa/OSLogSPI.h>
 
 #if ENABLE(REMOTE_INSPECTOR)
 #import <JavaScriptCore/RemoteInspector.h>
@@ -243,25 +242,10 @@ static void softlinkDataDetectorsFrameworks()
 #endif // ENABLE(DATA_DETECTION)
 }
 
-static void initializeLogd()
-{
-    os_trace_set_mode(OS_TRACE_MODE_INFO | OS_TRACE_MODE_DEBUG);
-
-    // Log a long message to make sure the XPC connection to the log daemon for oversized messages is opened.
-    // This is needed to block launchd after the WebContent process has launched, since access to launchd is
-    // required when opening new XPC connections.
-    char stringWithSpaces[1024];
-    memset(stringWithSpaces, ' ', sizeof(stringWithSpaces));
-    stringWithSpaces[sizeof(stringWithSpaces) - 1] = 0;
-    RELEASE_LOG(Process, "Initialized logd %s", stringWithSpaces);
-}
-
 void WebProcess::platformInitializeWebProcess(WebProcessCreationParameters& parameters)
 {
     WEBPROCESS_RELEASE_LOG(Process, "WebProcess::platformInitializeWebProcess");
 
-    initializeLogd();
-    
     applyProcessCreationParameters(parameters.auxiliaryProcessParameters);
 
     setQOS(parameters.latencyQOS, parameters.throughputQOS);

@@ -40,6 +40,7 @@ OS_ENUM(_os_trace_commonmodes, os_trace_mode_t,
     OS_TRACE_MODE_DEBUG                         = 0x02,
     OS_TRACE_MODE_BACKTRACE                     = 0x04,
     OS_TRACE_MODE_STREAM_LIVE                   = 0x08,
+    OS_TRACE_MODE_DISABLE                       = 0x0100,
     OS_TRACE_MODE_OFF                           = 0x0400,
 );
 

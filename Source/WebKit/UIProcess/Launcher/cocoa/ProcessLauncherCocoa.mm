@@ -56,7 +56,25 @@
 #import "CodeSigning.h"
 #endif
 
+#if __has_include(<WebKitAdditions/InternalBuildAdditions.h>)
+#include <WebKitAdditions/InternalBuildAdditions.h>
+#endif
+
 namespace WebKit {
+
+static bool haveUsedFeedbackAssistant()
+{
+    constexpr auto key = "WebKitOfflineWebApplicationCacheEnabled";
+    constexpr auto domain = "com.apple.appleseed.FeedbackAssistant";
+    
+    // Return true if there is no access to the preference domain
+    if (sandbox_check(getpid(), "user-preference-read", SANDBOX_FILTER_PREFERENCE_DOMAIN | SANDBOX_CHECK_NO_REPORT, domain))
+        return true;
+
+    Boolean keyExistsAndHasValidFormat = false;
+    CFPreferencesGetAppBooleanValue(CFSTR(key), CFSTR(domain), &keyExistsAndHasValidFormat);
+    return keyExistsAndHasValidFormat;
+}
 
 static const char* webContentServiceName(bool nonValidInjectedCodeAllowed, ProcessLauncher::Client* client)
 {
@@ -178,6 +196,15 @@ void ProcessLauncher::launchProcess()
     xpc_dictionary_set_string(bootstrapMessage.get(), "process-identifier", String::number(m_launchOptions.processIdentifier.toUInt64()).utf8().data());
     xpc_dictionary_set_string(bootstrapMessage.get(), "ui-process-name", [[[NSProcessInfo processInfo] processName] UTF8String]);
     xpc_dictionary_set_string(bootstrapMessage.get(), "service-name", name);
+
+    if (m_launchOptions.processType == ProcessLauncher::ProcessType::Web) {
+        bool disableLogging = !haveUsedFeedbackAssistant();
+#if __has_include(<WebKitAdditions/InternalBuildAdditions.h>)
+        if (isInternalBuild())
+            disableLogging = false;
+#endif
+        xpc_dictionary_set_bool(bootstrapMessage.get(), "disable-logging", disableLogging);
+    }
 
     bool isWebKitDevelopmentBuild = ![[[[NSBundle bundleWithIdentifier:@"com.apple.WebKit"] bundlePath] stringByDeletingLastPathComponent] hasPrefix:FileSystem::systemDirectoryPath()];
     if (isWebKitDevelopmentBuild) {
