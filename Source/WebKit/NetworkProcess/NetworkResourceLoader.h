@@ -172,6 +172,9 @@ public:
 #if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
     void ref() const final { RefCounted<NetworkResourceLoader>::ref(); }
     void deref() const final { RefCounted<NetworkResourceLoader>::deref(); }
+    bool startContentFiltering(WebCore::ResourceRequest&);
+    bool continueAfterDataReceived(const WebCore::SharedBuffer&, uint64_t encodedDataLength);
+    bool continueAfterResponseReceived(const WebCore::ResourceResponse&);
 #endif
 
     void willSendServiceWorkerRedirectedRequest(WebCore::ResourceRequest&&, WebCore::ResourceRequest&& redirectRequest, WebCore::ResourceResponse&&);
@@ -249,10 +252,6 @@ private:
     std::optional<Seconds> validateCacheEntryForMaxAgeCapValidation(const WebCore::ResourceRequest&, const WebCore::ResourceRequest& redirectRequest, const WebCore::ResourceResponse&);
 
     ResourceLoadInfo resourceLoadInfo();
-
-#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
-    bool startContentFiltering(WebCore::ResourceRequest&);
-#endif
 
     // ReportingClient
     void notifyReportObservers(Ref<WebCore::Report>&&) final;

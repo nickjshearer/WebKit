@@ -174,6 +174,11 @@ void ServiceWorkerFetchTask::startFetch()
             clientIdentifier = identifier->toString();
     }
 
+#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
+    if (!m_loader.startContentFiltering(request))
+        return;
+#endif
+
     bool isSent = sendToServiceWorker(Messages::WebSWContextManagerConnection::StartFetch { m_serverConnectionIdentifier, m_serviceWorkerIdentifier, m_fetchIdentifier, request, options, IPC::FormDataReference { m_currentRequest.httpBody() }, referrer, m_preloader && m_preloader->isServiceWorkerNavigationPreloadEnabled(), clientIdentifier, m_loader.resultingClientIdentifier() });
     ASSERT_UNUSED(isSent, isSent);
 }
@@ -207,6 +212,10 @@ void ServiceWorkerFetchTask::didReceiveResponse(WebCore::ResourceResponse&& resp
 {
     if (m_preloader && !m_preloader->isServiceWorkerNavigationPreloadEnabled())
         cancelPreloadIfNecessary();
+
+#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
+    m_loader.continueAfterResponseReceived(response);
+#endif
 
     processResponse(WTFMove(response), needsContinueDidReceiveResponseMessage, ShouldSetSource::Yes);
 }
@@ -254,8 +263,29 @@ void ServiceWorkerFetchTask::didReceiveData(const IPC::SharedBufferReference& da
     if (m_isDone)
         return;
 
+    RefPtr<WebCore::SharedBuffer> buffer = data.unsafeBuffer();
+#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
+    if (buffer && !m_loader.continueAfterDataReceived(*buffer, encodedDataLength))
+        return;
+#endif
+
     ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
-    sendToClient(Messages::WebResourceLoader::DidReceiveData { data, encodedDataLength });
+    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(buffer), encodedDataLength });
+}
+
+void ServiceWorkerFetchTask::didReceiveDataFromPreloader(const WebCore::FragmentedSharedBuffer& data, uint64_t encodedDataLength)
+{
+    if (m_isDone)
+        return;
+
+    RefPtr<WebCore::SharedBuffer> buffer = data.makeContiguous();
+#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
+    if (buffer && !m_loader.continueAfterDataReceived(*buffer, encodedDataLength))
+        return;
+#endif
+
+    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
+    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(buffer), encodedDataLength });
 }
 
 void ServiceWorkerFetchTask::didReceiveFormData(const IPC::FormDataReference& formData)
@@ -460,7 +490,7 @@ void ServiceWorkerFetchTask::loadBodyFromPreloader()
             didFinish(m_preloader->networkLoadMetrics());
             return;
         }
-        didReceiveData(IPC::SharedBufferReference(const_cast<WebCore::FragmentedSharedBuffer&>(*chunk)), length);
+        didReceiveDataFromPreloader(const_cast<WebCore::FragmentedSharedBuffer&>(*chunk), length);
     });
 }
 

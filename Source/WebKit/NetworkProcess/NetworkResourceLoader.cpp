@@ -249,6 +249,7 @@ bool NetworkResourceLoader::startContentFiltering(ResourceRequest& request)
 {
     if (!isMainResource())
         return true;
+    ASSERT(!m_contentFilter);
     m_contentFilter = ContentFilter::create(*this);
     m_contentFilter->startFilteringMainResource(request.url());
     if (!m_contentFilter->continueAfterWillSendRequest(request, ResourceResponse())) {
@@ -1973,6 +1974,16 @@ void NetworkResourceLoader::sendReportToEndpoints(const URL& baseURL, const Vect
 }
 
 #if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
+bool NetworkResourceLoader::continueAfterDataReceived(const WebCore::SharedBuffer& buffer, uint64_t encodedDataLength)
+{
+    return m_contentFilter && m_contentFilter->continueAfterDataReceived(buffer, encodedDataLength);
+}
+
+bool NetworkResourceLoader::continueAfterResponseReceived(const ResourceResponse& response)
+{
+    return m_contentFilter && m_contentFilter->continueAfterResponseReceived(response);
+}
+
 void NetworkResourceLoader::dataReceivedThroughContentFilter(const SharedBuffer& buffer, size_t encodedDataLength)
 {
     send(Messages::WebResourceLoader::DidReceiveData(IPC::SharedBufferReference(buffer), encodedDataLength));
