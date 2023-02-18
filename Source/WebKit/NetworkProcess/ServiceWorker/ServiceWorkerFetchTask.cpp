@@ -213,10 +213,6 @@ void ServiceWorkerFetchTask::didReceiveResponse(WebCore::ResourceResponse&& resp
     if (m_preloader && !m_preloader->isServiceWorkerNavigationPreloadEnabled())
         cancelPreloadIfNecessary();
 
-#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
-    m_loader.continueAfterResponseReceived(response);
-#endif
-
     processResponse(WTFMove(response), needsContinueDidReceiveResponseMessage, ShouldSetSource::Yes);
 }
 
@@ -224,6 +220,10 @@ void ServiceWorkerFetchTask::processResponse(ResourceResponse&& response, bool n
 {
     if (m_isDone)
         return;
+
+#if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
+    m_loader.continueAfterResponseReceived(response);
+#endif
 
     SWFETCH_RELEASE_LOG("processResponse: (httpStatusCode=%d, MIMEType=%" PUBLIC_LOG_STRING ", expectedContentLength=%" PRId64 ", needsContinueDidReceiveResponseMessage=%d, source=%u)", response.httpStatusCode(), response.mimeType().string().utf8().data(), response.expectedContentLength(), needsContinueDidReceiveResponseMessage, static_cast<unsigned>(response.source()));
     m_wasHandled = true;
@@ -263,14 +263,16 @@ void ServiceWorkerFetchTask::didReceiveData(const IPC::SharedBufferReference& da
     if (m_isDone)
         return;
 
-    RefPtr<WebCore::SharedBuffer> buffer = data.unsafeBuffer();
+    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
+
 #if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
-    if (buffer && !m_loader.continueAfterDataReceived(*buffer, encodedDataLength))
+    RefPtr<WebCore::SharedBuffer> buffer = data.unsafeBuffer();
+    if (!buffer)
+        return;
+    if (!m_loader.continueAfterDataReceived(*buffer, encodedDataLength))
         return;
 #endif
-
-    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
-    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(buffer), encodedDataLength });
+    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(data), encodedDataLength });
 }
 
 void ServiceWorkerFetchTask::didReceiveDataFromPreloader(const WebCore::FragmentedSharedBuffer& data, uint64_t encodedDataLength)
@@ -278,14 +280,16 @@ void ServiceWorkerFetchTask::didReceiveDataFromPreloader(const WebCore::Fragment
     if (m_isDone)
         return;
 
-    RefPtr<WebCore::SharedBuffer> buffer = data.makeContiguous();
+    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
+
 #if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
-    if (buffer && !m_loader.continueAfterDataReceived(*buffer, encodedDataLength))
+    RefPtr<WebCore::SharedBuffer> buffer = data.makeContiguous();
+    if (!buffer)
+        return;
+    if (!m_loader.continueAfterDataReceived(*buffer, encodedDataLength))
         return;
 #endif
-
-    ASSERT(!m_timeoutTimer || !m_timeoutTimer->isActive());
-    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(buffer), encodedDataLength });
+    sendToClient(Messages::WebResourceLoader::DidReceiveData { IPC::SharedBufferReference(data), encodedDataLength });
 }
 
 void ServiceWorkerFetchTask::didReceiveFormData(const IPC::FormDataReference& formData)

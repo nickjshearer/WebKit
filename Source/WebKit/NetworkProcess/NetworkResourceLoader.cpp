@@ -249,7 +249,6 @@ bool NetworkResourceLoader::startContentFiltering(ResourceRequest& request)
 {
     if (!isMainResource())
         return true;
-    ASSERT(!m_contentFilter);
     m_contentFilter = ContentFilter::create(*this);
     m_contentFilter->startFilteringMainResource(request.url());
     if (!m_contentFilter->continueAfterWillSendRequest(request, ResourceResponse())) {
@@ -1928,6 +1927,8 @@ void NetworkResourceLoader::serviceWorkerDidNotHandle(ServiceWorkerFetchTask* fe
         if (m_networkLoad)
             m_networkLoad->updateRequestAfterRedirection(newRequest);
 
+        m_contentFilter = nullptr;
+
         LOADER_RELEASE_LOG("serviceWorkerDidNotHandle: Restarting network load for redirect");
         restartNetworkLoad(WTFMove(newRequest));
         return;
@@ -1976,7 +1977,9 @@ void NetworkResourceLoader::sendReportToEndpoints(const URL& baseURL, const Vect
 #if ENABLE(CONTENT_FILTERING_IN_NETWORKING_PROCESS)
 bool NetworkResourceLoader::continueAfterDataReceived(const WebCore::SharedBuffer& buffer, uint64_t encodedDataLength)
 {
-    return m_contentFilter && m_contentFilter->continueAfterDataReceived(buffer, encodedDataLength);
+    if (!m_contentFilter)
+        return true;
+    return m_contentFilter->continueAfterDataReceived(buffer, encodedDataLength);
 }
 
 bool NetworkResourceLoader::continueAfterResponseReceived(const ResourceResponse& response)
