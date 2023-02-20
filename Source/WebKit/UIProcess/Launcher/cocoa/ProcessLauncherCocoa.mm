@@ -48,6 +48,7 @@
 #import <wtf/Threading.h>
 #import <wtf/cocoa/RuntimeApplicationChecksCocoa.h>
 #import <wtf/spi/cf/CFBundleSPI.h>
+#import <wtf/spi/darwin/SandboxSPI.h>
 #import <wtf/spi/darwin/XPCSPI.h>
 #import <wtf/text/CString.h>
 #import <wtf/text/WTFString.h>
@@ -68,11 +69,11 @@ static bool haveUsedFeedbackAssistant()
     constexpr auto domain = "com.apple.appleseed.FeedbackAssistant";
     
     // Return true if there is no access to the preference domain
-    if (sandbox_check(getpid(), "user-preference-read", SANDBOX_FILTER_PREFERENCE_DOMAIN | SANDBOX_CHECK_NO_REPORT, domain))
+    if (sandbox_check(getpid(), "user-preference-read", static_cast<enum sandbox_filter_type>(SANDBOX_FILTER_PREFERENCE_DOMAIN | SANDBOX_CHECK_NO_REPORT), domain))
         return true;
 
     Boolean keyExistsAndHasValidFormat = false;
-    CFPreferencesGetAppBooleanValue(CFSTR(key), CFSTR(domain), &keyExistsAndHasValidFormat);
+    CFPreferencesGetAppBooleanValue(String::fromUTF8(key).createCFString().get(), String::fromUTF8(domain).createCFString().get(), &keyExistsAndHasValidFormat);
     return keyExistsAndHasValidFormat;
 }
 
@@ -203,6 +204,7 @@ void ProcessLauncher::launchProcess()
         if (isInternalBuild())
             disableLogging = false;
 #endif
+        //disableLogging = true;
         xpc_dictionary_set_bool(bootstrapMessage.get(), "disable-logging", disableLogging);
     }
 

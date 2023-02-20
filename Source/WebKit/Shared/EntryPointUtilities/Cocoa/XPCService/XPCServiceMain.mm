@@ -76,16 +76,36 @@ static void initializeCFPrefs()
 #endif // ENABLE(CFPREFS_DIRECT_MODE)
 }
 
+static void blockLogdInSandbox()
+{
+    audit_token_t auditToken = { 0 };
+    mach_msg_type_number_t info_size = TASK_AUDIT_TOKEN_COUNT;
+    if (KERN_SUCCESS == task_info(mach_task_self(), TASK_AUDIT_TOKEN, reinterpret_cast<integer_t *>(&auditToken), &info_size))
+        sandbox_enable_state_flag("DisableLogging", auditToken);
+}
+
+static void registerLogHooks()
+{
+    os_log_set_hook(OS_LOG_TYPE_DEFAULT, ^(os_log_type_t type, os_log_message_t msg) {
+          char *msgstr = os_log_copy_decorated_message(type, msg);
+          fprintf(stderr, "%s", msgstr);
+          free(msgstr);
+    });
+    os_log_set_hook(OS_LOG_TYPE_INFO, ^(os_log_type_t type, os_log_message_t msg) {
+          char *msgstr = os_log_copy_decorated_message(type, msg);
+          fprintf(stderr, "%s", msgstr);
+          free(msgstr);
+    });
+}
+
 static void initializeLogd(bool disableLogging)
 {
     if (disableLogging) {
-        os_trace_set_mode(OS_TRACE_MODE_DISABLE);
-#if HAVE(SANDBOX_STATE_FLAGS)
-        audit_token_t auditToken = { 0 };
-        mach_msg_type_number_t info_size = TASK_AUDIT_TOKEN_COUNT;
-        if (KERN_SUCCESS == task_info(mach_task_self(), TASK_AUDIT_TOKEN, reinterpret_cast<integer_t *>(&auditToken), &info_size))
-            sandbox_enable_state_flag("DisableLogging", auditToken);
+#if HAVE(SANDBOX_STATE_FLAGS) && PLATFORM(IOS_FAMILY)
+        blockLogdInSandbox();
 #endif
+        registerLogHooks();
+        os_trace_set_mode(OS_TRACE_MODE_OFF);
         return;
     }
 
@@ -99,7 +119,6 @@ static void initializeLogd(bool disableLogging)
     stringWithSpaces[sizeof(stringWithSpaces) - 1] = 0;
     RELEASE_LOG(Process, "Initialized logd %s", stringWithSpaces);
 }
-
 
 static void XPCServiceEventHandler(xpc_connection_t peer)
 {
@@ -171,7 +190,7 @@ static void XPCServiceEventHandler(xpc_connection_t peer)
             if (fd != -1)
                 dup2(fd, STDERR_FILENO);
 
-            WorkQueue::main().dispatchSync([initializerFunctionPtr, event = OSObjectPtr<xpc_object_t>(event), retainedPeerConnection] {
+            WorkQueue::main().dispatchSync([initializerFunctionPtr, event = OSObjectPtr<xpc_object_t>(event), retainedPeerConnection, disableLogging] {
                 WTF::initializeMainThread();
 
                 initializeCFPrefs();
@@ -179,6 +198,11 @@ static void XPCServiceEventHandler(xpc_connection_t peer)
                 initializerFunctionPtr(retainedPeerConnection.get(), event.get());
 
                 setAppleLanguagesPreference();
+
+#if HAVE(SANDBOX_STATE_FLAGS) && PLATFORM(MAC)
+                if (disableLogging)
+                    blockLogdInSandbox();
+#endif
             });
 
             return;
@@ -191,12 +215,10 @@ static void XPCServiceEventHandler(xpc_connection_t peer)
 }
 
 #if PLATFORM(MAC) || PLATFORM(MACCATALYST)
-
 NEVER_INLINE NO_RETURN_DUE_TO_CRASH static void crashDueWebKitFrameworkVersionMismatch()
 {
     CRASH();
 }
-
 #endif // PLATFORM(MAC)
 
 int XPCServiceMain(int, const char**)

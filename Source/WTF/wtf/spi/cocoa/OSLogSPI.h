@@ -54,4 +54,9 @@ void os_log_with_args(os_log_t oslog, os_log_type_t type, const char *format, va
 OS_EXPORT OS_NOTHROW
 void os_trace_set_mode(os_trace_mode_t mode);
 
+typedef void (^os_log_hook_t)(os_log_type_t type, os_log_message_t msg);
+
+OS_EXPORT OS_NOTHROW
+os_log_hook_t os_log_set_hook(os_log_type_t level, os_log_hook_t hook);
+
 WTF_EXTERN_C_END
