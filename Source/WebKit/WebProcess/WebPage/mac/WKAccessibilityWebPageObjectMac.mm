@@ -78,6 +78,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (NSArray *)accessibilityAttributeNames
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilityAttributeNames");
     if (!m_attributeNames)
         m_attributeNames = adoptNS([[NSArray alloc] initWithObjects:
                             NSAccessibilityRoleAttribute, NSAccessibilityRoleDescriptionAttribute, NSAccessibilityFocusedAttribute,
@@ -91,6 +92,8 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (NSArray *)accessibilityParameterizedAttributeNames
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilityParameterizedAttributeNames");
+
 #if ENABLE(ACCESSIBILITY_ISOLATED_TREE)
     if (id cachedNames = self.cachedParameterizedAttributeNames)
         return cachedNames;
@@ -119,6 +122,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (BOOL)accessibilityIsAttributeSettable:(NSString *)attribute
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilityIsAttributeSettable");
     return NO;
 }
 
@@ -126,10 +130,12 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (void)accessibilitySetValue:(id)value forAttribute:(NSString *)attribute
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilitySetValue");
 }
 
 - (NSPoint)convertScreenPointToRootView:(NSPoint)point
 {
+    NSLog(@"convertScreenPointToRootView");
     return ax::retrieveValueFromMainThread<NSPoint>([&point, PROTECTED_SELF] () -> NSPoint {
         if (!protectedSelf->m_page)
             return point;
@@ -141,11 +147,13 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (NSArray *)accessibilityActionNames
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilityActionNames");
     return @[];
 }
 
 - (NSArray *)accessibilityChildren
 {
+    NSLog(@"accessibilityChildren");
     id wrapper = [self accessibilityRootObjectWrapper];
     if (!wrapper)
         return @[];
@@ -155,6 +163,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (NSArray *)accessibilityChildrenInNavigationOrder
 {
+    NSLog(@"accessibilityChildrenInNavigationOrder");
     return [self accessibilityChildren];
 }
 
@@ -162,6 +171,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (id)accessibilityAttributeValue:(NSString *)attribute
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilityAttributeValue %@", attribute  );
     if (!WebCore::AXObjectCache::accessibilityEnabled())
         WebCore::AXObjectCache::enableAccessibility();
     
@@ -207,6 +217,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (NSValue *)accessibilityAttributeSizeValue
 {
+    NSLog(@"accessibilityAttributeSizeValue");
     return ax::retrieveValueFromMainThread<RetainPtr<id>>([PROTECTED_SELF] () -> RetainPtr<id> {
         if (!protectedSelf->m_page)
             return nil;
@@ -216,6 +227,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (NSValue *)accessibilityAttributePositionValue
 {
+    NSLog(@"accessibilityAttributePositionValue");
     return ax::retrieveValueFromMainThread<RetainPtr<id>>([PROTECTED_SELF] () -> RetainPtr<id> {
         if (!protectedSelf->m_page)
             return nil;
@@ -225,6 +237,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (id)accessibilityDataDetectorValue:(NSString *)attribute point:(WebCore::FloatPoint&)point
 {
+    NSLog(@"accessibilityDataDetectorValue");
     return ax::retrieveValueFromMainThread<RetainPtr<id>>([&attribute, &point, PROTECTED_SELF] () -> RetainPtr<id> {
         if (!protectedSelf->m_page)
             return nil;
@@ -247,6 +260,7 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_BEGIN
 - (id)accessibilityAttributeValue:(NSString *)attribute forParameter:(id)parameter
 ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 {
+    NSLog(@"accessibilityAttributeValue");
     WebCore::FloatPoint pageOverlayPoint;
     if ([parameter isKindOfClass:[NSValue class]] && !strcmp([(NSValue *)parameter objCType], @encode(NSPoint)))
         pageOverlayPoint = [self convertScreenPointToRootView:[(NSValue *)parameter pointValue]];
@@ -261,12 +275,14 @@ ALLOW_DEPRECATED_IMPLEMENTATIONS_END
 
 - (BOOL)accessibilityShouldUseUniqueId
 {
+    NSLog(@"accessibilityShouldUseUniqueId");
     return YES;
 }
 
 ALLOW_DEPRECATED_DECLARATIONS_BEGIN
 - (id)accessibilityHitTest:(NSPoint)point
 {
+    NSLog(@"accessibilityHitTest");
     auto convertedPoint = ax::retrieveValueFromMainThread<WebCore::IntPoint>([&point, PROTECTED_SELF] () -> WebCore::IntPoint {
         if (!protectedSelf->m_page)
             return WebCore::IntPoint(point);
